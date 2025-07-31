@@ -1,38 +1,96 @@
 import streamlit as st
 
-# Inisialisasi daftar booking di session_state
+# Inisialisasi session_state untuk daftar booking
 if "bookings" not in st.session_state:
     st.session_state.bookings = []
 
-st.title("Aplikasi Booking Hotel")
+MAX_KAMAR = 10
 
-menu = st.sidebar.selectbox("Pilih Menu", ["Tambah Booking", "Lihat Booking"])
+st.title("🏨 Aplikasi Hotelku")
 
-if menu == "Tambah Booking":
-    st.header("Tambah Booking Kamar")
+menu = st.sidebar.selectbox("Menu", ["Lihat Booking", "Tambah Booking", "Ubah Booking", "Hapus Booking"])
 
-    nama = st.text_input("Nama Lengkap")
-    tanggal = st.date_input("Tanggal Menginap")
-    kamar = st.selectbox("Pilih Kamar", [1, 2, 3, 4, 5])
+# Validasi Nomor HP
+def valid_nomor_hp(hp):
+    return hp.isdigit() and 10 <= len(hp) <= 13
 
-    if st.button("Booking Sekarang"):
-        # Simpan data booking ke session_state
-        booking_baru = {
-            "nama": nama,
-            "tanggal": tanggal,
-            "kamar": kamar
-        }
-        st.session_state.bookings.append(booking_baru)
-        st.success(f"Booking berhasil! Kamu dapat kamar nomor {kamar}.")
+# Cek apakah tanggal sudah dipesan
+def tanggal_sudah_dipesan(tanggal):
+    return any(b["tanggal"] == tanggal for b in st.session_state.bookings)
 
-elif menu == "Lihat Booking":
-    st.header("Daftar Booking Hotel")
+# Lihat Booking
+if menu == "Lihat Booking":
+    st.subheader("📋 Daftar Booking Hotel")
+    if not st.session_state.bookings:
+        st.info("Belum ada booking.")
+    for i, b in enumerate(st.session_state.bookings):
+        st.write(
+            f"{i}. 🛏️ Kamar {b['nomor_kamar']} | Nama: {b['nama']} | HP: {b['hp']} | Tanggal: {b['tanggal']} | Jam: {b['jam']}"
+        )
 
+# Tambah Booking
+elif menu == "Tambah Booking":
+    st.subheader("📝 Tambah Booking Baru")
+    nama = st.text_input("Nama")
+    hp = st.text_input("Nomor HP (10–13 digit)")
+    tanggal = st.date_input("Tanggal")
+    jam = st.time_input("Jam")
+
+    if st.button("Tambah"):
+        if len(st.session_state.bookings) >= MAX_KAMAR:
+            st.error("Maaf Kamar Sudah Penuh!")
+        elif tanggal_sudah_dipesan(str(tanggal)):
+            st.error("Tanggal sudah tidak tersedia.")
+        elif not valid_nomor_hp(hp):
+            st.error("Nomor HP tidak valid!")
+        elif not nama:
+            st.warning("Nama harus diisi.")
+        else:
+            nomor_kamar = len(st.session_state.bookings) + 1
+            st.session_state.bookings.append({
+                "nama": nama,
+                "hp": hp,
+                "tanggal": str(tanggal),
+                "jam": str(jam),
+                "nomor_kamar": nomor_kamar
+            })
+            st.success(f"Booking berhasil. Nomor Kamar: {nomor_kamar}")
+
+# Ubah Booking
+elif menu == "Ubah Booking":
+    st.subheader("✏️ Ubah Booking")
+    index = st.number_input("Index booking", min_value=0, max_value=max(len(st.session_state.bookings)-1, 0), step=1)
     if st.session_state.bookings:
-        for i, b in enumerate(st.session_state.bookings, start=1):
-            st.write(f"### Booking {i}")
-            st.write(f"- Nama: {b['nama']}")
-            st.write(f"- Tanggal: {b['tanggal']}")
-            st.write(f"- Kamar: {b['kamar']}")
-    else:
-        st.info("Belum ada data booking.")
+        nama = st.text_input("Nama baru")
+        hp = st.text_input("Nomor HP baru")
+        tanggal = st.date_input("Tanggal baru")
+        jam = st.time_input("Jam baru")
+
+        if st.button("Ubah"):
+            if index < len(st.session_state.bookings):
+                if str(tanggal) != st.session_state.bookings[index]["tanggal"] and tanggal_sudah_dipesan(str(tanggal)):
+                    st.error("Tanggal sudah tidak tersedia.")
+                elif not valid_nomor_hp(hp):
+                    st.error("Nomor HP tidak valid!")
+                else:
+                    st.session_state.bookings[index] = {
+                        "nama": nama,
+                        "hp": hp,
+                        "tanggal": str(tanggal),
+                        "jam": str(jam),
+                        "nomor_kamar": st.session_state.bookings[index]["nomor_kamar"]
+                    }
+                    st.success("Booking berhasil diubah.")
+            else:
+                st.error("Index booking tidak valid.")
+
+# Hapus Booking
+elif menu == "Hapus Booking":
+    st.subheader("🗑️ Hapus Booking")
+    index = st.number_input("Index booking", min_value=0, max_value=max(len(st.session_state.bookings)-1, 0), step=1)
+    if st.button("Hapus"):
+        if index < len(st.session_state.bookings):
+            st.session_state.bookings.pop(index)
+            st.success("Booking berhasil dihapus.")
+        else:
+            st.error("Index booking tidak valid.")
